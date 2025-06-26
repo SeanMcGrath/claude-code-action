@@ -1,0 +1,84 @@
+# GitLab CI Configuration for Claude Code Action
+# This pipeline is triggered by webhooks when @claude is mentioned in issues/MRs
+
+stages:
+  - validate
+  - claude-process
+
+variables:
+  # Claude Configuration
+  CLAUDE_MODEL: "claude-3-5-sonnet-20241022"
+  TRIGGER_PHRASE: "@claude"
+  BRANCH_PREFIX: "claude/"
+  BASE_BRANCH: "main"
+  MAX_TURNS: "10"
+  TIMEOUT_MINUTES: "30"
+  
+  # Runtime Configuration
+  NODE_VERSION: "20"
+  BUN_VERSION: "1.2.11"
+
+# Validate trigger and permissions
+validate-trigger:
+  stage: validate
+  image: node:${NODE_VERSION}-alpine
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "trigger" && $CLAUDE_TRIGGER_DATA'
+  script:
+    - echo "Validating Claude trigger..."
+    - node dist/validate-gitlab-trigger.js
+  artifacts:
+    reports:
+      dotenv: trigger-validation.env
+    expire_in: 1 hour
+
+# Main Claude processing job
+claude-respond:
+  stage: claude-process
+  image: node:${NODE_VERSION}-alpine
+  needs: ["validate-trigger"]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "trigger" && $CLAUDE_TRIGGER_DATA && $TRIGGER_VALID == "true"'
+  before_script:
+    # Install Bun for better performance
+    - apk add --no-cache curl unzip
+    - curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
+    - export PATH="$HOME/.bun/bin:$PATH"
+    - bun install
+  script:
+    - echo "Starting Claude processing..."
+    - bun run gitlab:process
+  after_script:
+    # Clean up any temporary files
+    - rm -rf /tmp/claude-*
+  artifacts:
+    reports:
+      dotenv: claude-results.env
+    paths:
+      - logs/
+    expire_in: 24 hours
+    when: always
+  timeout: ${TIMEOUT_MINUTES}m
+  retry:
+    max: 1
+    when:
+      - api_failure
+      - runner_system_failure
+
+# Optional: Deploy webhook receiver if running in CI/CD environment
+deploy-webhook-receiver:
+  stage: validate
+  image: docker:latest
+  services:
+    - docker:dind
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $DEPLOY_WEBHOOK_RECEIVER == "true"'
+    - when: manual
+  script:
+    - docker build -t claude-gitlab-webhook ./webhook-receiver
+    - docker tag claude-gitlab-webhook $CI_REGISTRY_IMAGE/webhook-receiver:$CI_COMMIT_SHA
+    - docker push $CI_REGISTRY_IMAGE/webhook-receiver:$CI_COMMIT_SHA
+  only:
+    changes:
+      - webhook-receiver/**/*
+      - .gitlab-ci.yml

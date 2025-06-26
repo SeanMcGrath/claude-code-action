@@ -1,29 +1,56 @@
 {
-  "name": "@anthropic-ai/claude-code-action",
+  "name": "claude-code-action",
   "version": "1.0.0",
-  "private": true,
+  "description": "GitHub Action and GitLab CI/CD integration for Claude AI code assistance",
+  "type": "module",
   "scripts": {
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "install-hooks": "bun run scripts/install-hooks.sh",
+    "build": "tsc",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "format": "prettier --write \"**/*.{ts,js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
+    "github:prepare": "bun run src/entrypoints/prepare.ts",
+    "gitlab:prepare": "bun run src/entrypoints/gitlab-prepare.ts",
+    "gitlab:validate": "bun run src/entrypoints/validate-gitlab-trigger.ts",
+    "gitlab:process": "bun run gitlab:validate && bun run gitlab:prepare && claude-code-base-action",
+    "webhook:dev": "cd webhook-receiver && bun run dev",
+    "webhook:build": "cd webhook-receiver && bun run build",
+    "webhook:start": "cd webhook-receiver && bun run start"
   },
   "dependencies": {
     "@actions/core": "^1.10.1",
-    "@actions/github": "^6.0.1",
-    "@modelcontextprotocol/sdk": "^1.11.0",
-    "@octokit/graphql": "^8.2.2",
-    "@octokit/rest": "^21.1.1",
-    "@octokit/webhooks-types": "^7.6.1",
+    "@actions/github": "^6.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@octokit/rest": "^20.0.2",
     "node-fetch": "^3.3.2",
-    "zod": "^3.24.4"
+    "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/bun": "1.2.11",
-    "@types/node": "^20.0.0",
-    "@types/node-fetch": "^2.6.12",
-    "prettier": "3.5.3",
-    "typescript": "^5.8.3"
-  }
+    "@types/node": "^20.10.0",
+    "@types/bun": "latest",
+    "prettier": "^3.1.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "bun": ">=1.0.0"
+  },
+  "keywords": [
+    "github-action",
+    "gitlab-ci",
+    "claude",
+    "ai",
+    "code-review",
+    "automation",
+    "anthropic"
+  ],
+  "author": "Anthropic",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anthropics/claude-code-action.git"
+  },
+  "bugs": {
+    "url": "https://github.com/anthropics/claude-code-action/issues"
+  },
+  "homepage": "https://github.com/anthropics/claude-code-action#readme"
 }
