@@ -4,8 +4,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import crypto from 'crypto';
 import { GitLabWebhookHandler } from './webhook-handler.js';
-import { GitLabTriggerValidator } from '../src/gitlab/validation/trigger.js';
-import { GitLabActionConfig } from '../src/gitlab/types.js';
+import { GitLabTriggerValidator } from '../../src/gitlab/validation/trigger.js';
+import { GitLabActionConfig } from '../../src/gitlab/types.js';
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -63,7 +63,7 @@ function verifyWebhookSignature(req: express.Request, res: express.Response, nex
     return res.status(401).json({ error: 'Invalid webhook signature' });
   }
 
-  next();
+  return next();
 }
 
 // Health check endpoint
@@ -140,14 +140,14 @@ app.post('/trigger/manual', async (req, res) => {
 
     await webhookHandler.handleManualTrigger(triggerResult, prompt);
 
-    res.json({ 
+    return res.json({ 
       message: 'Manual trigger started',
       triggerResult 
     });
 
   } catch (error) {
     console.error('Error processing manual trigger:', error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
